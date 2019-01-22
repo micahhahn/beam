@@ -61,7 +61,7 @@ import           Control.Arrow (first)
 import           Control.Monad.Identity
 import           Control.Monad.Writer
 
-import           Data.Char (isUpper, toLower)
+import           Data.Char (isUpper, isLower, toLower, toUpper)
 import           Data.Monoid ((<>))
 import           Data.Proxy
 import           Data.String (IsString(..))
@@ -901,20 +901,6 @@ instance ( Beamable tbl
                     -> Identity (Columnar' (Nullable Ignored) a)
           transform _ _ = Identity (Columnar' Ignored)
 
-
--- * Internal functions
-
-unCamelCase :: T.Text -> [T.Text]
-unCamelCase "" = []
-unCamelCase s
-    | (comp, next) <- T.break isUpper s, not (T.null comp) =
-          let next' = maybe mempty (uncurry T.cons . first toLower) (T.uncons next)
-          in T.toLower comp:unCamelCase next'
-    | otherwise =
-          let (comp, next) = T.span isUpper s
-              next' = maybe mempty (uncurry T.cons . first toLower) (T.uncons next)
-          in T.toLower comp:unCamelCase next'
-
 -- | Camel casing magic for standard beam record field names.
 --
 --   All leading underscores are ignored. If what remains is camel-cased beam
@@ -924,12 +910,6 @@ unCamelCase s
 --   doing and include the full original name as the field name
 unCamelCaseSel :: Text -> Text
 unCamelCaseSel original =
-  let symbolLeft = T.dropWhile (=='_') original
-  in if T.null symbolLeft
-     then original
-     else if T.any (=='_') symbolLeft
-          then symbolLeft
-          else case unCamelCase symbolLeft of
-                 [] -> symbolLeft
-                 [xs] -> xs
-                 _:xs -> T.intercalate "_" xs
+  let symbolLeft = T.dropWhile (== '_') original
+      (left, right) = T.break (== '_') symbolLeft 
+  in  if T.null right then symbolLeft else T.tail right
